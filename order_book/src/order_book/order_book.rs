@@ -103,6 +103,13 @@ impl OrderBook {
         return order.id;
     }
 
+    pub fn get_order(&self, order_id: &u32) -> Result<Order, OrderBookErrors> {
+        match self.orders.get(order_id) {
+            Some(order) => return Ok(order.clone()),
+            None => return Err(OrderBookErrors::OrderNotExist),
+        }
+    }
+
     pub fn cancel_order(&mut self, order_id: &u32) -> Result<(), OrderBookErrors> {
         match self.orders.get_mut(order_id) {
             Some(order) => {
