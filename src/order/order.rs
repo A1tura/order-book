@@ -2,16 +2,23 @@ use rand::random;
 
 use crate::order::Price;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Side {
     Bid,
     Ask,
 }
 
 #[derive(Clone)]
+pub enum Type {
+    Limit,
+    Market
+}
+
+#[derive(Clone)]
 pub struct Order {
     pub id: u32,
 
+    pub order_type: Type,
     pub side: Side,
 
     pub price: Price,
@@ -20,9 +27,10 @@ pub struct Order {
 }
 
 impl Order {
-    pub fn new(side: Side, price: f64, quantity: u32) -> Order {
+    pub fn new(order_type: Type, side: Side, price: f64, quantity: u32) -> Order {
         Order {
             id: random::<u32>(),
+            order_type,
             side,
             price: Price::from(price),
             quantity

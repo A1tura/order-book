@@ -3,7 +3,7 @@ use std::{
     fmt::{self, Display},
 };
 
-use crate::order::{Order, Price, Side};
+use crate::order::{Order, Price, Side, Type};
 
 pub struct OrderBook {
     pub bids: BTreeMap<Price, Vec<u32>>,
@@ -22,7 +22,24 @@ impl OrderBook {
         }
     }
 
-    pub fn add_order(&mut self, order: Order) {
+    pub fn submit_order(&mut self, order: &mut Order) {
+        match order.order_type {
+            Type::Limit => self.execute_limit(order),
+            Type::Market => self.match_order(order),
+        }
+    }
+
+    fn execute_limit(&mut self, order: &mut Order) {
+        if (self.asks.len() >= 1 && order.side == Side::Bid)
+            || (self.bids.len() >= 1 && order.side == Side::Ask)
+        {
+            self.match_order(order);
+        }
+
+        if order.quantity == 0 {
+            return
+        }
+
         self.orders.insert(order.id, order.clone());
         match &order.side {
             Side::Bid => {
@@ -46,12 +63,71 @@ impl OrderBook {
         }
     }
 
+    fn match_order(&mut self, order: &mut Order) {
+        match &order.side {
+            Side::Bid => {
+                let best_ask_id = self.get_best_ask();
+                let mut best_ask = self.orders.get_mut(&best_ask_id).unwrap();
+                if best_ask.price <= order.price {
+                    if best_ask.quantity > 0 {
+                        if best_ask.quantity > order.quantity {
+                            best_ask.quantity -= order.quantity;
+                            order.quantity = 0;
+                        } else {
+                            order.quantity -= best_ask.quantity;
+                            self.asks.pop_first();
+                            self.remove_order(&order);
+                        }
+                    }
+                }
+            }
+            Side::Ask => {
+                while order.quantity != 0 && !self.bids.is_empty() {
+                    let best_bid_id = self.get_best_bid();
+                    let mut best_bid = self.orders.get_mut(&best_bid_id).unwrap();
+                    if best_bid.price >= order.price {
+                        if best_bid.quantity > 0 {
+                            if best_bid.quantity > order.quantity {
+                                best_bid.quantity -= order.quantity;
+                                order.quantity = 0;
+                            } else {
+                                order.quantity -= best_bid.quantity;
+                                self.bids.pop_last();
+                                self.remove_order(&order);
+                            }
+                        }
+                    } else {
+                        break;
+                    }
+                }
+            }
+        }
+    }
+
+    fn remove_order(&mut self, order: &Order) {
+        self.orders.remove(&order.id);
+    }
+
     pub fn get_best_bid(&self) -> u32 {
-        return *self.bids.iter().next_back().unwrap().1.iter().next().unwrap();
+        if self.bids.len() >= 1 {
+            return *self
+                .bids
+                .iter()
+                .next_back()
+                .unwrap()
+                .1
+                .iter()
+                .next()
+                .unwrap();
+        }
+        return 0;
     }
 
     pub fn get_best_ask(&self) -> u32 {
-        return *self.asks.iter().next().unwrap().1.iter().next().unwrap();
+        if self.asks.len() >= 1 {
+            return *self.asks.iter().next().unwrap().1.iter().next().unwrap();
+        }
+        return 0;
     }
 }
 
