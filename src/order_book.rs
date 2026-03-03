@@ -68,7 +68,7 @@ impl OrderBook {
             Side::Bid => {
                 let best_ask_id = self.get_best_ask();
                 let mut best_ask = self.orders.get_mut(&best_ask_id).unwrap();
-                if (order.order_type == Type::Limit && best_ask.price <= order.price) || (order.order_type == Type::Market && true) {
+                if (order.order_type == Type::Limit && best_ask.price <= order.price) || order.order_type == Type::Market {
                     if best_ask.quantity > 0 {
                         if best_ask.quantity > order.quantity {
                             best_ask.quantity -= order.quantity;
@@ -85,7 +85,7 @@ impl OrderBook {
                 while order.quantity != 0 && !self.bids.is_empty() {
                     let best_bid_id = self.get_best_bid();
                     let mut best_bid = self.orders.get_mut(&best_bid_id).unwrap();
-                    if (order.order_type == Type::Limit && best_bid.price >= order.price) || (order.order_type == Type::Market && true) {
+                    if (order.order_type == Type::Limit && best_bid.price >= order.price) || order.order_type == Type::Market {
                         if best_bid.quantity > 0 {
                             if best_bid.quantity > order.quantity {
                                 best_bid.quantity -= order.quantity;
