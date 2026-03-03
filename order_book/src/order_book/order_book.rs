@@ -6,6 +6,19 @@ use std::{
 use crate::order::{Order, OrderReq, Price, Side, Type};
 use crate::order_book::OrderBookErrors;
 
+#[derive(Debug)]
+pub struct Level {
+    pub price: f64,
+    pub total_quantity: u32,
+}
+
+#[derive(Debug)]
+pub struct Snapshot {
+    pub bids: Vec<Level>,
+    pub asks: Vec<Level>,
+}
+
+#[derive(Debug)]
 pub struct OrderBook {
     pub bids: BTreeMap<Price, Vec<u32>>,
     pub asks: BTreeMap<Price, Vec<u32>>,
@@ -21,6 +34,60 @@ impl OrderBook {
 
             orders: HashMap::new(),
         }
+    }
+
+    pub fn snapshot(&self, depth: Option<usize>) -> Snapshot {
+        let mut snapshot = Snapshot {
+            bids: Vec::new(),
+            asks: Vec::new(),
+        };
+
+        if let Some(d) = depth {
+            let bids_depth = std::cmp::min(self.bids.len(), d);
+            let asks_depth = std::cmp::min(self.asks.len(), d);
+
+            for (i, price) in self.bids.keys().enumerate() {
+                if i > bids_depth {
+                    break;
+                }
+
+                let mut level = Level {
+                    price: price.as_float(),
+                    total_quantity: 0,
+                };
+
+                let orders = self.bids.get(&price).unwrap();
+                for order_id in orders.iter() {
+                    for order in self.orders.get(order_id) {
+                        level.total_quantity += order.order.quantity;
+                    }
+                }
+
+                snapshot.bids.push(level);
+            }
+
+            for (i, price) in self.asks.keys().enumerate() {
+                if i > bids_depth {
+                    break;
+                }
+
+                let mut level = Level {
+                    price: price.as_float(),
+                    total_quantity: 0,
+                };
+
+                let orders = self.asks.get(&price).unwrap();
+                for order_id in orders.iter() {
+                    for order in self.orders.get(order_id) {
+                        level.total_quantity += order.order.quantity;
+                    }
+                }
+
+                snapshot.asks.push(level);
+            }
+        }
+
+        return snapshot;
     }
 
     pub fn submit_order(&mut self, orderReq: &OrderReq) -> u32 {
@@ -88,7 +155,10 @@ impl OrderBook {
         match &order.order.side {
             Side::Bid => {
                 if self.bids.contains_key(&order.order.price) {
-                    self.bids.get_mut(&order.order.price).unwrap().push(order.id);
+                    self.bids
+                        .get_mut(&order.order.price)
+                        .unwrap()
+                        .push(order.id);
                 } else {
                     let mut orders: Vec<u32> = Vec::new();
                     orders.push(order.id);
@@ -97,7 +167,10 @@ impl OrderBook {
             }
             Side::Ask => {
                 if self.asks.contains_key(&order.order.price) {
-                    self.asks.get_mut(&order.order.price).unwrap().push(order.id);
+                    self.asks
+                        .get_mut(&order.order.price)
+                        .unwrap()
+                        .push(order.id);
                 } else {
                     let mut orders: Vec<u32> = Vec::new();
                     orders.push(order.id);
@@ -112,7 +185,8 @@ impl OrderBook {
             Side::Bid => {
                 let best_ask_id = self.get_best_ask();
                 let mut best_ask = self.orders.get_mut(&best_ask_id).unwrap();
-                if (order.order.order_type == Type::Limit && best_ask.order.price <= order.order.price)
+                if (order.order.order_type == Type::Limit
+                    && best_ask.order.price <= order.order.price)
                     || order.order.order_type == Type::Market
                 {
                     if best_ask.order.quantity > 0 {
@@ -131,7 +205,8 @@ impl OrderBook {
                 while order.order.quantity != 0 && !self.bids.is_empty() {
                     let best_bid_id = self.get_best_bid();
                     let mut best_bid = self.orders.get_mut(&best_bid_id).unwrap();
-                    if (order.order.order_type == Type::Limit && best_bid.order.price >= order.order.price)
+                    if (order.order.order_type == Type::Limit
+                        && best_bid.order.price >= order.order.price)
                         || order.order.order_type == Type::Market
                     {
                         if best_bid.order.quantity > 0 {
@@ -186,7 +261,11 @@ impl Display for OrderBook {
             let _ = write!(f, "\t{}:\n", price.as_float());
             for order in orders {
                 let order = self.orders.get(order).unwrap();
-                let _ = write!(f, "\t\tid: {}; quantity: {}\n", order.id, order.order.quantity);
+                let _ = write!(
+                    f,
+                    "\t\tid: {}; quantity: {}\n",
+                    order.id, order.order.quantity
+                );
             }
         }
 
@@ -195,7 +274,11 @@ impl Display for OrderBook {
             let _ = write!(f, "\t{}:\n", price.as_float());
             for order in orders {
                 let order = self.orders.get(order).unwrap();
-                let _ = write!(f, "\t\tid: {}; quantity: {}\n", order.id, order.order.quantity);
+                let _ = write!(
+                    f,
+                    "\t\tid: {}; quantity: {}\n",
+                    order.id, order.order.quantity
+                );
             }
         }
 
