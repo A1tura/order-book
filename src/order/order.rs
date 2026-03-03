@@ -8,7 +8,7 @@ pub enum Side {
     Ask,
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq)]
 pub enum Type {
     Limit,
     Market
