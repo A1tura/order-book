@@ -1,5 +1,3 @@
-use rand::random;
-
 use crate::order::Price;
 
 #[derive(Clone, PartialEq, Eq, Debug)]
@@ -42,7 +40,7 @@ impl OrderReq {
 }
 
 impl Order {
-    pub fn new(orderReq: OrderReq) -> Order {
-        Order { id: rand::random::<u32>(), order: orderReq }
+    pub fn new(order_req: OrderReq) -> Order {
+        Order { id: rand::random::<u32>(), order: order_req }
     }
 }
