@@ -1,0 +1,29 @@
+name: Rust
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+    - name: Build order book
+      run: cd order_book && cargo build --verbose
+
+    - name: Build engine
+      run: cd engine && cargo build --verbose
+
+    - name: Run order book tests
+      run: cd order_book && cargo test --verbose
+
+    - name: Run engine tests
+      run: cd engine && cargo test --verbose
