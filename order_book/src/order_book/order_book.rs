@@ -19,6 +19,14 @@ pub struct Snapshot {
 }
 
 #[derive(Debug)]
+pub struct Trade {
+    pub maker: u32,
+    pub taker: u32,
+    pub price: Price,
+    pub quantity: u32,
+}
+
+#[derive(Debug)]
 pub struct OrderBook {
     pub bids: BTreeMap<Price, VecDeque<u32>>,
     pub asks: BTreeMap<Price, VecDeque<u32>>,
@@ -93,14 +101,14 @@ impl OrderBook {
         return snapshot;
     }
 
-    pub fn submit_order(&mut self, order_req: &OrderReq) -> u32 {
+    pub fn submit_order(&mut self, order_req: &OrderReq) -> (u32, Option<Vec<Trade>>) {
         let mut order = Order::new(order_req.clone());
-        match order_req.order_type {
+        let trades = match order_req.order_type {
             Type::Limit => self.execute_limit(&mut order),
             Type::Market => self.match_order(&mut order),
-        }
+        };
 
-        return order.id;
+        return (order.id, trades);
     }
 
     pub fn get_order(&self, order_id: &u32) -> Result<Order, OrderBookErrors> {
@@ -150,15 +158,16 @@ impl OrderBook {
         return Ok(());
     }
 
-    fn execute_limit(&mut self, order: &mut Order) {
+    fn execute_limit(&mut self, order: &mut Order) -> Option<Vec<Trade>> {
+        let mut trades = None;
         if (self.asks.len() >= 1 && order.order.side == Side::Bid)
             || (self.bids.len() >= 1 && order.order.side == Side::Ask)
         {
-            self.match_order(order);
+            trades = self.match_order(order);
         }
 
         if order.order.quantity == 0 {
-            return;
+            return trades;
         }
 
         self.orders.insert(order.id, order.clone());
@@ -188,11 +197,14 @@ impl OrderBook {
                 }
             }
         }
+
+        return trades;
     }
 
-    fn match_order(&mut self, order: &mut Order) {
+    fn match_order(&mut self, order: &mut Order) -> Option<Vec<Trade>> {
         match &order.order.side {
             Side::Bid => {
+                let mut trades: Vec<Trade> = Vec::new();
                 while order.order.quantity != 0 && !self.asks.is_empty() {
                     let best_ask_id = self.get_best_ask();
                     let best_ask = self.orders.get_mut(&best_ask_id).unwrap();
@@ -202,24 +214,52 @@ impl OrderBook {
                     {
                         if best_ask.order.quantity > 0 {
                             if best_ask.order.quantity > order.order.quantity {
+                                trades.push(Trade {
+                                    maker: best_ask_id,
+                                    taker: order.id,
+                                    price: std::cmp::min(
+                                        best_ask.order.price.clone(),
+                                        order.order.price.clone(),
+                                    ),
+                                    quantity: order.order.quantity,
+                                });
                                 best_ask.order.quantity -= order.order.quantity;
                                 order.order.quantity = 0;
+
+                                return Some(trades);
                             } else {
+                                trades.push(Trade {
+                                    maker: best_ask_id,
+                                    taker: order.id,
+                                    price: std::cmp::min(
+                                        best_ask.order.price.clone(),
+                                        order.order.price.clone(),
+                                    ),
+                                    quantity: best_ask.order.quantity,
+                                });
                                 order.order.quantity -= best_ask.order.quantity;
                                 let level = self.asks.get_mut(&best_ask.order.price).unwrap();
                                 level.pop_front();
                                 if level.is_empty() {
                                     self.asks.remove(&best_ask.order.price);
                                 }
+
                                 self.orders.remove(&best_ask_id);
                             }
                         }
                     } else {
+                        if trades.len() > 0 {
+                            return Some(trades);
+                        }
                         break;
                     }
                 }
+                if trades.len() > 0 {
+                    return Some(trades);
+                }
             }
             Side::Ask => {
+                let mut trades: Vec<Trade> = Vec::new();
                 while order.order.quantity != 0 && !self.bids.is_empty() {
                     let best_bid_id = self.get_best_bid();
                     let best_bid = self.orders.get_mut(&best_bid_id).unwrap();
@@ -229,9 +269,31 @@ impl OrderBook {
                     {
                         if best_bid.order.quantity > 0 {
                             if best_bid.order.quantity > order.order.quantity {
+                                trades.push(Trade {
+                                    maker: best_bid_id,
+                                    taker: order.id,
+                                    price: std::cmp::min(
+                                        best_bid.order.price.clone(),
+                                        order.order.price.clone(),
+                                    ),
+                                    quantity: order.order.quantity,
+                                });
+
                                 best_bid.order.quantity -= order.order.quantity;
                                 order.order.quantity = 0;
+
+                                return Some(trades);
                             } else {
+                                trades.push(Trade {
+                                    maker: best_bid_id,
+                                    taker: order.id,
+                                    price: std::cmp::min(
+                                        best_bid.order.price.clone(),
+                                        order.order.price.clone(),
+                                    ),
+                                    quantity: best_bid.order.quantity,
+                                });
+
                                 order.order.quantity -= best_bid.order.quantity;
                                 let level = self.bids.get_mut(&best_bid.order.price).unwrap();
                                 level.pop_front();
@@ -244,11 +306,19 @@ impl OrderBook {
                             }
                         }
                     } else {
+                        if trades.len() > 0 {
+                            return Some(trades);
+                        }
                         break;
                     }
                 }
+                if trades.len() > 0 {
+                    return Some(trades);
+                }
             }
         }
+
+        return None;
     }
 
     pub fn get_best_bid(&self) -> u32 {
