@@ -20,7 +20,9 @@ pub struct Snapshot {
 
 #[derive(Debug)]
 pub struct Trade {
+    pub maker_client_id: u32,
     pub maker: u32,
+    pub taker_client_id: u32,
     pub taker: u32,
     pub price: Price,
     pub quantity: u32,
@@ -215,7 +217,9 @@ impl OrderBook {
                         if best_ask.order.quantity > 0 {
                             if best_ask.order.quantity > order.order.quantity {
                                 trades.push(Trade {
+                                    maker_client_id: best_ask.order.client_id,
                                     maker: best_ask_id,
+                                    taker_client_id: order.order.client_id,
                                     taker: order.id,
                                     price: std::cmp::min(
                                         best_ask.order.price.clone(),
@@ -229,7 +233,9 @@ impl OrderBook {
                                 return Some(trades);
                             } else {
                                 trades.push(Trade {
+                                    maker_client_id: best_ask.order.client_id,
                                     maker: best_ask_id,
+                                    taker_client_id: order.order.client_id,
                                     taker: order.id,
                                     price: std::cmp::min(
                                         best_ask.order.price.clone(),
@@ -270,7 +276,9 @@ impl OrderBook {
                         if best_bid.order.quantity > 0 {
                             if best_bid.order.quantity > order.order.quantity {
                                 trades.push(Trade {
+                                    maker_client_id: best_bid.order.client_id,
                                     maker: best_bid_id,
+                                    taker_client_id: order.order.client_id,
                                     taker: order.id,
                                     price: std::cmp::min(
                                         best_bid.order.price.clone(),
@@ -285,7 +293,9 @@ impl OrderBook {
                                 return Some(trades);
                             } else {
                                 trades.push(Trade {
+                                    maker_client_id: best_bid.order.client_id,
                                     maker: best_bid_id,
+                                    taker_client_id: order.order.client_id,
                                     taker: order.id,
                                     price: std::cmp::min(
                                         best_bid.order.price.clone(),

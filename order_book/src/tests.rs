@@ -9,14 +9,17 @@ mod tests {
     fn limit_orders_full_match() {
         let mut ob = OrderBook::new();
 
-        let bid_order = OrderReq::new(Type::Limit, Side::Bid, 10.00, 100);
-        let ask_order = OrderReq::new(Type::Limit, Side::Ask, 10.00, 100);
+        let bid_order = OrderReq::new(1, Type::Limit, Side::Bid, 10.00, 100);
+        let ask_order = OrderReq::new(2, Type::Limit, Side::Ask, 10.00, 100);
 
         let (ask_id, ask_trades) = ob.submit_order(&ask_order);
         let (bid_id, bid_trades) = ob.submit_order(&bid_order);
 
         if let Some(ref trades) = bid_trades {
             let trade = &trades[0];
+
+            assert_eq!(trade.maker_client_id, 2);
+            assert_eq!(trade.taker_client_id, 1);
 
             assert_eq!(trade.maker, ask_id);
             assert_eq!(trade.taker, bid_id);
@@ -35,8 +38,8 @@ mod tests {
     fn partial_fill_resting_remains() {
         let mut ob = OrderBook::new();
 
-        let (bid_order_id, bid_trades) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Bid, 10.00, 100));
-        let (ask_order_id, ask_trades) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.00, 50));
+        let (bid_order_id, bid_trades) = ob.submit_order(&OrderReq::new(1, Type::Limit, Side::Bid, 10.00, 100));
+        let (ask_order_id, ask_trades) = ob.submit_order(&OrderReq::new(2, Type::Limit, Side::Ask, 10.00, 50));
 
         if let Some (ref trades) = ask_trades {
             let trade = &trades[0];
@@ -63,12 +66,19 @@ mod tests {
     fn multi_level_fill() {
         let mut ob = OrderBook::new();
 
-        let (first_ask_order_id, first_ask_trades) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.00, 50));
-        let (second_ask_order_id, second_ask_trades) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.05, 50));
-        let (bid_order_id, bid_trades) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Bid, 10.10, 100));
+        let (first_ask_order_id, first_ask_trades) = ob.submit_order(&OrderReq::new(1, Type::Limit, Side::Ask, 10.00, 50));
+        let (second_ask_order_id, second_ask_trades) = ob.submit_order(&OrderReq::new(2, Type::Limit, Side::Ask, 10.05, 50));
+        let (bid_order_id, bid_trades) = ob.submit_order(&OrderReq::new(3, Type::Limit, Side::Bid, 10.10, 100));
 
 
         if let Some(ref trades) = bid_trades {
+
+            assert_eq!(trades[0].maker_client_id, 1);
+            assert_eq!(trades[0].taker_client_id, 3);
+
+            assert_eq!(trades[1].maker_client_id, 2);
+            assert_eq!(trades[1].taker_client_id, 3);
+
             assert_eq!(trades.len(), 2);
 
             assert_eq!(trades[0].maker, first_ask_order_id);
@@ -96,10 +106,10 @@ mod tests {
     fn fifo_same_price() {
         let mut ob = OrderBook::new();
 
-        let (first_ask_order_id, _) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.00, 50));
+        let (first_ask_order_id, _) = ob.submit_order(&OrderReq::new(1, Type::Limit, Side::Ask, 10.00, 50));
         let (second_ask_order_id, _) =
-            ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.00, 50));
-        ob.submit_order(&OrderReq::new(Type::Limit, Side::Bid, 10.00, 70));
+            ob.submit_order(&OrderReq::new(2, Type::Limit, Side::Ask, 10.00, 50));
+        ob.submit_order(&OrderReq::new(3, Type::Limit, Side::Bid, 10.00, 70));
 
         let order = ob.get_order(&second_ask_order_id).unwrap();
 
@@ -111,8 +121,8 @@ mod tests {
     fn market_order_insufficient_liquidity() {
         let mut ob = OrderBook::new();
 
-        let _ = ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.00, 10));
-        let _ = ob.submit_order(&OrderReq::new(Type::Market, Side::Bid, 0.00, 1000));
+        let _ = ob.submit_order(&OrderReq::new(1, Type::Limit, Side::Ask, 10.00, 10));
+        let _ = ob.submit_order(&OrderReq::new(2, Type::Market, Side::Bid, 0.00, 1000));
 
         assert!(ob.asks.is_empty());
     }
@@ -121,7 +131,7 @@ mod tests {
     fn cancel_removes_order() {
         let mut ob = OrderBook::new();
 
-        let (order_id, _) = ob.submit_order(&OrderReq::new(Type::Limit, Side::Ask, 10.00, 100));
+        let (order_id, _) = ob.submit_order(&OrderReq::new(1, Type::Limit, Side::Ask, 10.00, 100));
         let _ = ob.cancel_order(&order_id).unwrap();
 
         assert!(ob.asks.is_empty());
