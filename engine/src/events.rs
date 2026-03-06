@@ -7,7 +7,7 @@ pub enum Event {
     GetSnapshot { symbol: String, depth: Option<usize>, client_id: u32 },
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum EngineEvent {
     OrderAccepted { client_id: u32, order_id: u32 },
     OrderCancelled { client_id: u32, order_id: u32 },

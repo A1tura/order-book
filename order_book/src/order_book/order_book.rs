@@ -6,13 +6,13 @@ use std::{
 use crate::order::{Order, OrderReq, Price, Side, Type};
 use crate::order_book::OrderBookErrors;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Level {
     pub price: f64,
     pub total_quantity: u32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Snapshot {
     pub bids: Vec<Level>,
     pub asks: Vec<Level>,
