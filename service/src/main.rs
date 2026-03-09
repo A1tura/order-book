@@ -3,36 +3,44 @@ mod session;
 mod transport;
 mod utils;
 
-use std::sync::{Arc};
+mod mcast;
+
+use std::sync::Arc;
 use tokio::sync::RwLock;
 
 use router::Router;
 
 use tokio::net::TcpListener;
 
-use engine::{
-    engine::Engine,
-    events::{EngineEvent, Event},
-};
+use engine::{engine::Engine, events::{EngineEvent, Event}};
 
 use crate::{router::SharedRouter, transport::Connection};
 
 #[tokio::main]
 async fn main() {
     let listener = TcpListener::bind("0.0.0.0:1337").await.unwrap();
-    let mut router: SharedRouter = Arc::new(RwLock::new(Router::new()));
+    let router: SharedRouter = Arc::new(RwLock::new(Router::new()));
+    let mut engine = Engine::new();
 
     let (order_book_tx, mut order_book_rx) = tokio::sync::mpsc::channel::<Event>(1024);
+    let (feed_tx, _) = tokio::sync::broadcast::channel::<Vec<EngineEvent>>(4096);
 
-    let mut router_clone = router.clone();
+    let router_clone = router.clone();
+    let feed_tx_clone = feed_tx.clone();
     tokio::spawn(async move {
-        let mut engine = Engine::new();
         engine.new_book("INTC".to_string());
         while let Some(req) = order_book_rx.recv().await {
             let events = engine.handle_event(req).unwrap();
             let mut router = router_clone.write().await;
-            router.route_events(events).await;
+
+            router.route_events(&events).await;
+            let _ = feed_tx_clone.send(events);
         }
+    });
+
+    let feed_tx = feed_tx.clone();
+    tokio::spawn(async move {
+        mcast::run(feed_tx).await;
     });
 
     loop {

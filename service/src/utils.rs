@@ -17,7 +17,7 @@ pub fn message_as_event(client_id: u32, message: &Message) -> Event {
             };
             // TODO: fix hardcored symbol
             return Event::NewOrder {
-                symbol: "INTC".to_string(),
+                symbol_id: order.symbol,
                 order_req: OrderReq::new(
                     client_id,
                     order_book::order::Type::Limit,
@@ -35,7 +35,7 @@ pub fn message_as_event(client_id: u32, message: &Message) -> Event {
             };
             // TODO: fix hardcored symbol
             return Event::NewOrder {
-                symbol: "INTC".to_string(),
+                symbol_id: order.symbol,
                 order_req: OrderReq::new(
                     client_id,
                     order_book::order::Type::Market,
@@ -45,11 +45,11 @@ pub fn message_as_event(client_id: u32, message: &Message) -> Event {
                 ),
             };
         }
-        Message::CancelOrder(order_info) => {
+        Message::CancelOrder(order) => {
             // TODO: fix hardcored symbol
             return Event::CancelOrder {
-                symbol: "INTC".to_string(),
-                order_id: order_info.order_id,
+                symbol_id: order.symbol,
+                order_id: order.order_id,
                 client_id: client_id,
             };
         }
@@ -61,31 +61,37 @@ pub fn engine_event_as_bytes(engine_event: &EngineEvent) -> (BytesMut, MessageTy
     let mut buf = BytesMut::new();
     match engine_event {
         EngineEvent::OrderAccepted {
+            symbol_id,
             client_id: _,
             order_id,
         } => {
             engine_messages::OrderAccepted {
+                symbol_id: *symbol_id,
                 order_id: *order_id,
             }
             .encode(&mut buf);
             return (buf, MessageType::OrderAccepted);
         }
         EngineEvent::OrderCancelled {
+            symbol_id,
             client_id: _,
             order_id,
         } => {
             engine_messages::OrderCanceled {
+                symbol_id: *symbol_id,
                 order_id: *order_id,
             }
             .encode(&mut buf);
             return (buf, MessageType::OrderCanceled);
         }
         EngineEvent::OrderPartiallyFilled {
+            symbol_id,
             client_id: _,
             order_id,
             remaining,
         } => {
             engine_messages::OrderPartiallyFilled {
+                symbol_id: *symbol_id,
                 order_id: *order_id,
                 remaining: *remaining,
             }
@@ -93,10 +99,12 @@ pub fn engine_event_as_bytes(engine_event: &EngineEvent) -> (BytesMut, MessageTy
             return (buf, MessageType::OrderPartiallyFilled);
         }
         EngineEvent::OrderFilled {
+            symbol_id,
             client_id: _,
             order_id,
         } => {
             engine_messages::OrderFilled {
+                symbol_id: *symbol_id,
                 order_id: *order_id,
             }
             .encode(&mut buf);
@@ -104,6 +112,7 @@ pub fn engine_event_as_bytes(engine_event: &EngineEvent) -> (BytesMut, MessageTy
             return (buf, MessageType::OrderFilled);
         }
         EngineEvent::Trade {
+            symbol_id,
             maker_client_id: _,
             maker_order_id,
             taker_client_id: _,
@@ -112,6 +121,7 @@ pub fn engine_event_as_bytes(engine_event: &EngineEvent) -> (BytesMut, MessageTy
             quantity,
         } => {
             engine_messages::Trade {
+                symbol_id: *symbol_id,
                 maker_order_id: *maker_order_id,
                 taker_order_id: *taker_order_id,
                 price: price.as_float(),

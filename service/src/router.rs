@@ -35,17 +35,17 @@ impl Router {
         };
     }
 
-    pub async fn route_events(&mut self, events: Vec<EngineEvent>) {
+    pub async fn route_events(&mut self, events: &Vec<EngineEvent>) {
         for event in events {
             if let Some(client_id) = event.get_client_id() {
                 let sender = self.clients.get_mut(&client_id);
                 if let Some(sender) = sender {
-                    let _ = sender.send(event).await;
+                    let _ = sender.send(event.clone()).await;
                     continue;
                 }
             }
             if event.get_client_id().is_none() {
-                self.send_to_all(event).await;
+                self.send_to_all(event.clone()).await;
             }
         }
     }
