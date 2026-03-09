@@ -1,0 +1,6 @@
+services:
+  engine:
+    container_name: engine
+    network_mode: host
+    build:
+      context: "./"
