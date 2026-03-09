@@ -1,4 +1,4 @@
-use std::{collections::HashMap, sync::{Arc}};
+use std::{collections::HashMap, sync::Arc};
 use tokio::sync::RwLock;
 
 use engine::events::{EngineEvent, Event};
@@ -43,10 +43,9 @@ impl Router {
                     let _ = sender.send(event).await;
                     continue;
                 }
-
-                if event.get_client_id().is_none() {
-                    self.send_to_all(event).await;
-                }
+            }
+            if event.get_client_id().is_none() {
+                self.send_to_all(event).await;
             }
         }
     }

@@ -104,17 +104,15 @@ pub fn engine_event_as_bytes(engine_event: &EngineEvent) -> (BytesMut, MessageTy
             return (buf, MessageType::OrderFilled);
         }
         EngineEvent::Trade {
-            maker_client_id,
+            maker_client_id: _,
             maker_order_id,
-            taker_client_id,
+            taker_client_id: _,
             taker_order_id,
             price,
             quantity,
         } => {
             engine_messages::Trade {
-                maker_client_id: *maker_client_id,
                 maker_order_id: *maker_order_id,
-                taker_client_id: *taker_client_id,
                 taker_order_id: *taker_order_id,
                 price: price.as_float(),
                 quantity: *quantity,
